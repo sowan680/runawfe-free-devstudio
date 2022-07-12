@@ -3,6 +3,7 @@ package ru.runa.gpd.lang.model;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -270,6 +271,9 @@ public class ProcessDefinition extends NamedGraphElement implements Describable,
         if (startStates.size() > 1) {
             errors.add(ValidationError.createLocalizedError(this, "multipleStartStatesNotAllowed"));
         }
+        if(checkGraphElements()) {
+            errors.add(ValidationError.createLocalizedError(this, "NotConnectedObjects"));
+        }
         boolean invalid = false;
         for (ValidationError validationError : errors) {
             if (validationError.getSeverity() == IMarker.SEVERITY_ERROR) {
@@ -281,6 +285,39 @@ public class ProcessDefinition extends NamedGraphElement implements Describable,
             this.invalid = invalid;
             setDirty(true);
         }
+    }
+
+    public boolean checkGraphElements() {
+        List<StartState> startStates = getChildren(StartState.class);
+        if (startStates.size() == 0 || startStates.size() > 1) {
+            return false;
+        }
+        HashMap<String, Boolean> isConnectedNodes = new HashMap<String, Boolean>();
+        for (Node node : getNodesRecursive()) {
+            isConnectedNodes.put(node.getId(), true);
+        }
+        isConnectedNodes = setIsConnectedToAllObjects(startStates.get(0), isConnectedNodes);
+        for (Node node : getNodesRecursive()) {
+            if (isConnectedNodes.get(node.getId())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public HashMap<String, Boolean> setIsConnectedToAllObjects(Node node, HashMap<String, Boolean> isConnectedNodes) {
+        isConnectedNodes.put(node.getId(), false);
+        List<Transition> leavingTransitions = node.getLeavingTransitions();
+        List<Node> connectedNodes = new ArrayList<Node>();
+        for (Transition transition : leavingTransitions) {
+            connectedNodes.add(transition.getTarget());
+        }
+        for (Node connectedNode : connectedNodes) {
+            if (isConnectedNodes.get(connectedNode.getId())) {
+                isConnectedNodes = setIsConnectedToAllObjects(connectedNode, isConnectedNodes);
+            }
+        }
+        return isConnectedNodes;
     }
 
     public List<String> getVariableNames(boolean expandComplexTypes, boolean includeSwimlanes, String... typeClassNameFilters) {
