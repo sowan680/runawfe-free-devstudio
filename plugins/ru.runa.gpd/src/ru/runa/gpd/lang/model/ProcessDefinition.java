@@ -271,8 +271,8 @@ public class ProcessDefinition extends NamedGraphElement implements Describable,
         if (startStates.size() > 1) {
             errors.add(ValidationError.createLocalizedError(this, "multipleStartStatesNotAllowed"));
         }
-        if(checkGraphElements()) {
-            errors.add(ValidationError.createLocalizedError(this, "NotConnectedObjects"));
+        if (hasUnconnectedElements()) {
+            errors.add(ValidationError.createLocalizedError(this, "unconnectedObject"));
         }
         boolean invalid = false;
         for (ValidationError validationError : errors) {
@@ -287,37 +287,36 @@ public class ProcessDefinition extends NamedGraphElement implements Describable,
         }
     }
 
-    public boolean checkGraphElements() {
+    public boolean hasUnconnectedElements() {
         List<StartState> startStates = getChildren(StartState.class);
-        if (startStates.size() == 0 || startStates.size() > 1) {
+        if (startStates.size() != 1) {
             return false;
         }
-        HashMap<String, Boolean> isConnectedNodes = new HashMap<String, Boolean>();
+        HashMap<String, Boolean> nodeIsConnected = new HashMap<String, Boolean>();
         for (Node node : getNodesRecursive()) {
-            isConnectedNodes.put(node.getId(), true);
+            nodeIsConnected.put(node.getId(), false);
         }
-        isConnectedNodes = setIsConnectedToAllObjects(startStates.get(0), isConnectedNodes);
+        checkIfNodeIsConnected(startStates.get(0), nodeIsConnected);
         for (Node node : getNodesRecursive()) {
-            if (isConnectedNodes.get(node.getId())) {
+            if (!(nodeIsConnected.get(node.getId()))) {
                 return true;
             }
         }
         return false;
     }
 
-    public HashMap<String, Boolean> setIsConnectedToAllObjects(Node node, HashMap<String, Boolean> isConnectedNodes) {
-        isConnectedNodes.put(node.getId(), false);
+    public void checkIfNodeIsConnected(Node node, HashMap<String, Boolean> nodeIsConnected) {
+        nodeIsConnected.put(node.getId(), true);
         List<Transition> leavingTransitions = node.getLeavingTransitions();
-        List<Node> connectedNodes = new ArrayList<Node>();
+        List<Node> childNodes = new ArrayList<Node>();
         for (Transition transition : leavingTransitions) {
-            connectedNodes.add(transition.getTarget());
+            childNodes.add(transition.getTarget());
         }
-        for (Node connectedNode : connectedNodes) {
-            if (isConnectedNodes.get(connectedNode.getId())) {
-                isConnectedNodes = setIsConnectedToAllObjects(connectedNode, isConnectedNodes);
+        for (Node childNode : childNodes) {
+            if (nodeIsConnected.get(childNode.getId())) {
+                checkIfNodeIsConnected(childNode, nodeIsConnected);
             }
         }
-        return isConnectedNodes;
     }
 
     public List<String> getVariableNames(boolean expandComplexTypes, boolean includeSwimlanes, String... typeClassNameFilters) {
