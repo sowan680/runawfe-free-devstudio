@@ -313,7 +313,7 @@ public class ProcessDefinition extends NamedGraphElement implements Describable,
             childNodes.add(transition.getTarget());
         }
         for (Node childNode : childNodes) {
-            if (nodeIsConnected.get(childNode.getId())) {
+            if (!nodeIsConnected.get(childNode.getId())) {
                 checkIfNodeIsConnected(childNode, nodeIsConnected);
             }
         }
